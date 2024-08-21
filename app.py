@@ -1,42 +1,58 @@
 import streamlit as st
 import pandas as pd
-from wordcloud import WordCloud
-import matplotlib.pyplot as plt
 
-# Load job data
-
+# Load the job data
 try:
     job_data = pd.read_csv('job_data.csv')
-    if 'Skills' in job_data.columns:
-        all_skills = [skill for sublist in job_data['Skills'] for skill in sublist]
-        st.write("Skills processed successfully.")
-    else:
-        st.warning("The 'Skills' column is not present in the data.")
 except Exception as e:
-    st.error(f"An error occurred: {e}")
-  
+    st.error(f"Error loading data: {e}")
+    job_data = pd.DataFrame()
 
-# Sidebar filters
-city = st.sidebar.selectbox('Select City', job_data['Location'].unique())
-industry = st.sidebar.text_input('Industry (optional)')
+st.title("Data Science Job Market EDA")
 
-# Filter data
-filtered_data = job_data[job_data['Location'] == city]
-if industry:
-    filtered_data = filtered_data[filtered_data['Summary'].str.contains(industry.lower())]
+# Display the DataFrame in a table format
+st.write("### Job Listings Overview", job_data)
 
-# Display top skills
-st.header(f"Top Skills in {city} {'for ' + industry if industry else ''}")
-all_skills = [skill for sublist in filtered_data['Skills'] for skill in sublist]
-skill_counts = pd.Series(all_skills).value_counts().head(20)
+# Filter by Location (optional)
+location = st.selectbox("Select Location", options=job_data['Location'].unique())
+filtered_data = job_data[job_data['Location'] == location]
 
-st.bar_chart(skill_counts)
+# Display selected job listings
+st.write(f"### Job Listings in {location}", filtered_data)
 
-# WordCloud of skills
-st.header("WordCloud of Skills")
-wordcloud = WordCloud(width=800, height=400).generate(' '.join(all_skills))
+# Detailed view of a selected job
+selected_job = st.selectbox("Select a Job Title", options=filtered_data['Job Title'])
 
-fig, ax = plt.subplots()
-ax.imshow(wordcloud, interpolation="bilinear")
-ax.axis("off")
-st.pyplot(fig)
+# Show detailed information about the selected job
+job_details = filtered_data[filtered_data['Job Title'] == selected_job].iloc[0]
+
+st.write(f"**Job Title:** {job_details['Job Title']}")
+st.write(f"**Company Name:** {job_details['Company Name']}")
+st.write(f"**Location:** {job_details['Location']}")
+st.write(f"**Salary:** {job_details['Salary']}")
+st.write(f"**Date Posted:** {job_details['Date']}")
+st.write(f"**Company Rating:** {job_details['Company Rating']}")
+
+# Display the company logo
+if pd.notna(job_details['Logo']):
+    st.image(job_details['Logo'], caption=f"Logo of {job_details['Company Name']}")
+
+# Link to the job posting
+if pd.notna(job_details['Job Link']):
+    st.write(f"[Job Link]({job_details['Job Link']})")
+
+# Summary statistics
+st.write("### Summary Statistics")
+
+# Average Company Rating
+average_rating = job_data['Company Rating'].mean()
+st.write(f"**Average Company Rating:** {average_rating:.2f}")
+
+# Average Salary
+job_data['Salary'] = pd.to_numeric(job_data['Salary'], errors='coerce')
+average_salary = job_data['Salary'].mean()
+st.write(f"**Average Salary:** ${average_salary:,.2f}")
+
+# Job Count by Location
+st.write("**Job Count by Location:**")
+st.bar_chart(job_data['Location'].value_counts())
